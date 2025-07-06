@@ -10,15 +10,10 @@
   },
   "dependencies": {
     "feedparser": "^2.2.10",
-    "firebase": "^11.9.1",
     "next": "15.3.4",
     "node-fetch": "^3.3.2",
-    "openai": "^5.7.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "rss-parser": "^3.13.0",
-    "rss-to-json": "^2.1.1",
-    "xml2js": "^0.6.2"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

@@ -1,26 +1,32 @@
-import { OpenAI } from 'openai';
 import FeedParser from 'feedparser';
 import fetch from 'node-fetch';
-import { getFirestore, collection, addDoc } from 'firebase/firestore';
-import { initializeApp } from 'firebase/app';
 
 const feeds = [
-    { name: 'hearthstone', url: 'https://www.reddit.com/r/hearthstone/.rss' },
-    { name: 'DotA2', url: 'https://www.reddit.com/r/DotA2/.rss' },
-    { name: 'GlobalOffensive', url: 'https://www.reddit.com/r/GlobalOffensive/.rss' }
+    {
+        name: 'Hearthstone',
+        url: 'https://www.reddit.com/r/hearthstone/.rss'
+    },
+    {
+        name: 'DotA2',
+        url: 'https://www.reddit.com/r/DotA2/.rss'
+    },
+    {
+        name: 'GlobalOffensive',
+        url: 'https://www.reddit.com/r/GlobalOffensive/.rss'
+    },
+    {
+        name: 'Wuthering Waves',
+        url: 'https://www.reddit.com/r/WutheringWaves/.rss'
+    },
 ];
-
-// const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-// const app = initializeApp({
-//     apiKey: process.env.FIREBASE_API_KEY,
-//     authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-//     projectId: process.env.FIREBASE_PROJECT_ID,
-// });
-// const db = getFirestore(app);
+let cachedItems = null;
+let lastFetch = 0;
 
 export default async function handler(req, res) {
     try {
+        if (Date.now() - lastFetch < 60 * 1000 && cachedItems) {
+            return res.status(200).json({ success: true, items: cachedItems });
+        }
         // Fetch & parse all feeds in parallel
         const allItems = (
             await Promise.all(
@@ -28,15 +34,15 @@ export default async function handler(req, res) {
                     const response = await fetch(url);
                     if (response.status !== 200) throw new Error(`Failed to fetch ${name}`);
 
-                    const feedparser = new FeedParser();
+                    const feedParser = new FeedParser();
                     const items = [];
 
                     const streamPromise = new Promise((resolve, reject) => {
-                        response.body.pipe(feedparser);
+                        response.body.pipe(feedParser);
 
-                        feedparser.on('error', reject);
+                        feedParser.on('error', reject);
 
-                        feedparser.on('readable', function () {
+                        feedParser.on('readable', function () {
                             let item;
                             while ((item = this.read())) {
                                 items.push({
@@ -49,7 +55,7 @@ export default async function handler(req, res) {
                             }
                         });
 
-                        feedparser.on('end', resolve);
+                        feedParser.on('end', resolve);
                     });
 
                     await streamPromise;
@@ -60,7 +66,9 @@ export default async function handler(req, res) {
 
         // Optional: sort by date (most recent first)
         allItems.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
-
+        cachedItems = allItems;
+        lastFetch = Date.now();
+        // res.status(200).json({ success: true, saved });
         res.status(200).json({ success: true, items: allItems });
     } catch (err) {
         console.error('API error:', err);
@@ -73,25 +81,5 @@ export default async function handler(req, res) {
     //     pubDate: item.pubDate,
     // }));
 
-    // const saved = [];
-    // for (const news of items) {
-    //     const prompt = `Title: ${news.title}\nContent: ${news.content}\n\n1. Is this a real gameplay update?\n2. If yes, summarize in 2 lines.`;
-
-    //     const aiRes = await openai.chat.completions.create({
-    //         model: 'gpt-4o',
-    //         messages: [{ role: 'user', content: prompt }],
-    //     });
-
-    //     const summary = aiRes.choices[0].message.content;
-
-    //     const result = await addDoc(collection(db, 'game_news'), {
-    //         ...news,
-    //         summary,
-    //         source: 'Dota 2',
-    //     });
-
-    //     saved.push(result.id);
-    // }
-
-    // res.status(200).json({ success: true, saved });
+    
 }
